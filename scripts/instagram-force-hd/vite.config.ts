@@ -15,6 +15,9 @@ export default defineConfig({
         'run-at': 'document-start',
         grant: 'none',
       },
+      build: {
+        fileName: 'instagram-force-hd.js',
+      },
     }),
   ],
 });
