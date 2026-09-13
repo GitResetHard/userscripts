@@ -9,7 +9,9 @@ export function spoofNetworkHints(): void {
     type: 'wifi' as const,
     addEventListener(): void {},
     removeEventListener(): void {},
-    dispatchEvent(): boolean { return false; },
+    dispatchEvent(): boolean {
+      return false;
+    },
     onchange: null as null,
   };
 

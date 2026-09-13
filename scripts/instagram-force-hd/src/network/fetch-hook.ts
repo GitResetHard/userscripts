@@ -11,12 +11,7 @@ export function hookFetch(): void {
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> {
-    const url =
-      input instanceof URL
-        ? input.href
-        : typeof input === 'string'
-          ? input
-          : input.url;
+    const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url;
 
     const response = await originalFetch.call(this, input, init);
     if (!shouldTouchUrl(url)) return response;

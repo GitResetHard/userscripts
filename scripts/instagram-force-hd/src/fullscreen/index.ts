@@ -23,9 +23,7 @@ export function isCssFullscreenActive(): boolean {
 
 function isNativeFullscreen(video: HTMLVideoElement): boolean {
   const fsEl =
-    document.fullscreenElement ??
-    document.webkitFullscreenElement ??
-    document.msFullscreenElement;
+    document.fullscreenElement ?? document.webkitFullscreenElement ?? document.msFullscreenElement;
   return !!fsEl && (fsEl === video || fsEl.contains(video));
 }
 
@@ -150,9 +148,7 @@ function fsIcon(expanded: boolean): string {
 }
 
 function updateFsButton(video: HTMLVideoElement): void {
-  const btn = video.parentElement?.querySelector<HTMLButtonElement>(
-    ':scope > .ig-force-hd-fs-btn',
-  );
+  const btn = video.parentElement?.querySelector<HTMLButtonElement>(':scope > .ig-force-hd-fs-btn');
   if (!btn) return;
   const expanded = isFullscreen(video);
   btn.innerHTML = fsIcon(expanded);
@@ -248,7 +244,12 @@ export function ensureFsButton(video: HTMLVideoElement): void {
   // When swiping Reels while already in fullscreen, follow the new active video.
   video.addEventListener('play', () => {
     if (!lastFullscreenVideo) return;
-    if (!isFullscreen(lastFullscreenVideo) && !cssFullscreenActive && document.fullscreenElement == null) return;
+    if (
+      !isFullscreen(lastFullscreenVideo) &&
+      !cssFullscreenActive &&
+      document.fullscreenElement == null
+    )
+      return;
     if (video === lastFullscreenVideo) return;
     if (!isPrimaryVideo(video)) return;
     void enterFullscreen(video);

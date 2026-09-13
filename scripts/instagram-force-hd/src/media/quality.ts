@@ -68,8 +68,7 @@ export function highestFromSrcset(srcset: string): string | null {
 export function findUpgradeUrl(currentSrc: string): string | null {
   if (!/cdninstagram\.com|fbcdn\.net/.test(currentSrc)) return null;
   const isLow =
-    /_(?:240|270|360|480|540)(?:w|p)?_/.test(currentSrc) ||
-    /\/s\d+x\d+\//.test(currentSrc);
+    /_(?:240|270|360|480|540)(?:w|p)?_/.test(currentSrc) || /\/s\d+x\d+\//.test(currentSrc);
   if (!isLow) return null;
 
   for (const url of bestVideoByKey.values()) {

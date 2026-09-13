@@ -112,6 +112,18 @@ Output: `dist/instagram-force-hd.user.js`
 npm run typecheck
 ```
 
+### Format
+
+```bash
+npm run format
+```
+
+Check only (CI):
+
+```bash
+npm run format:check
+```
+
 ## Changelog
 
 ### 1.2.0

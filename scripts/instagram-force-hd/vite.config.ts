@@ -7,19 +7,13 @@ export default defineConfig({
       entry: 'src/main.ts',
       userscript: {
         name: 'Instagram Force HD Media',
-        namespace: 'https://github.com/local/instagram-force-hd',
+        namespace: 'https://github.com/GitResetHard/userscripts',
         version: '1.2.0',
         description: 'Force Instagram HD media and optionally open videos in fullscreen.',
         author: 'local',
-        match: [
-          'https://www.instagram.com/*',
-          'https://instagram.com/*',
-        ],
+        match: ['https://www.instagram.com/*', 'https://instagram.com/*'],
         'run-at': 'document-start',
         grant: 'none',
-      },
-      build: {
-        fileName: 'instagram-force-hd.user.js',
       },
     }),
   ],
