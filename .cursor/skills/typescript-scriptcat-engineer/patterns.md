@@ -250,6 +250,9 @@ Return `null` (or a `Result` type) rather than letting errors propagate unhandle
 
 ## Vite config for userscript output
 
+Always set `build.fileName` explicitly to `<script-name>.js`. Do not rely on the
+`vite-plugin-monkey` default which appends `.user.js`.
+
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
@@ -266,6 +269,9 @@ export default defineConfig({
         description: 'What the script does',
         match: ['https://example.com/*'],
         grant: ['GM_getValue', 'GM_setValue'],
+      },
+      build: {
+        fileName: 'script-name.js',
       },
     }),
   ],

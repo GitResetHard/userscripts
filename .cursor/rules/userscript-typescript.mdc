@@ -179,8 +179,8 @@ main();
 
 - Project directory: `scripts/<script-name>/` (use the actual script name, e.g. `chaturbate-recurbate`)
 - Entry point: `src/main.ts`
-- Generated artifact: named after the script (e.g. `chaturbate-recurbate.user.js`)
-- Never use generic names: `script.user.js`, `userscript.ts`, `index.ts`
+- Generated artifact: `<script-name>.js` (e.g. `chaturbate-recurbate.js`) — set `build.fileName` explicitly in `vite.config.ts`; do NOT rely on the plugin default which appends `.user.js`
+- Never use generic names: `script.js`, `userscript.ts`, `index.ts`
 
 ## Documentation
 
