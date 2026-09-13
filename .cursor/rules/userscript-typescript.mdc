@@ -1,0 +1,229 @@
+---
+description: Professional TypeScript architecture and maintainability standards for ScriptCat userscripts
+alwaysApply: true
+---
+
+# ScriptCat Userscript Architecture
+
+## Project layout
+
+Each userscript lives in its own independent project under `scripts/`:
+
+```
+scripts/
+└── <script-name>/
+    ├── src/
+    │   ├── main.ts
+    │   └── ...
+    ├── README.md
+    ├── package.json
+    ├── tsconfig.json
+    └── vite.config.ts
+```
+
+All source code belongs inside `src/`. Never place TypeScript source at the project root.
+
+The entry point is always `src/main.ts` — never `index.ts`, `script.ts`, or any other generic name.
+
+Do NOT create a file unless it has a clear, meaningful responsibility. Architecture must scale with complexity, not be imposed on simple scripts.
+
+### Small script (single concern)
+
+```
+src/
+├── main.ts
+└── utils.ts
+```
+
+### Medium/large script (multiple concerns)
+
+```
+src/
+├── main.ts
+├── config.ts
+├── constants.ts
+├── types.ts
+├── features/
+├── services/
+├── dom/
+├── utils/
+└── styles/
+```
+
+## `main.ts` responsibilities
+
+`main.ts` coordinates startup only. It must not contain large blocks of implementation logic.
+
+```typescript
+// ✅ GOOD — thin entry point
+import { loadConfig } from './config';
+import { initFeatures } from './features';
+import { observeNavigation } from './dom/observer';
+
+async function main(): Promise<void> {
+  const config = loadConfig();
+  initFeatures(config);
+  observeNavigation();
+}
+
+main();
+```
+
+```typescript
+// ❌ BAD — implementation mixed into entry point
+(async () => {
+  const button = document.querySelector('#btn');
+  button?.addEventListener('click', () => {
+    // 50 lines of logic here
+  });
+  // another 200 lines...
+})();
+```
+
+## Architecture principles
+
+- Single Responsibility: each module does one thing
+- Separation of concerns: DOM, business logic, config, and utilities are distinct
+- Composition over unnecessary inheritance
+- Minimal coupling between modules
+- Clear dependency direction — avoid circular imports
+- Keep configuration separate from implementation (`config.ts`)
+- Keep shared constants separate from logic when reused across modules (`constants.ts`)
+- Keep shared types centralized when used by multiple modules (`types.ts`)
+- Keep DOM-specific code separate from business logic where practical
+
+Do not extract a module solely to match a pattern. Extract when there is a real responsibility boundary.
+
+## TypeScript
+
+`tsconfig.json` must enable `"strict": true`.
+
+```typescript
+// ✅ Explicit return types on public/shared functions
+export function parseVideoId(url: string): string | null { ... }
+
+// ✅ unknown instead of any for genuinely unknown input
+function processApiResponse(data: unknown): VideoInfo { ... }
+
+// ✅ Type narrowing instead of unsafe assertions
+if (element instanceof HTMLVideoElement) {
+  element.play();
+}
+
+// ✅ Properly typed DOM queries
+const video = document.querySelector<HTMLVideoElement>('video');
+
+// ✅ Immutable data
+const ENDPOINTS = Object.freeze({ api: '/api/v1' } as const);
+
+// ❌ Avoid
+const result = (response as any).data;
+let x: any = getValue();
+```
+
+Requirements:
+- `strict: true`
+- No `any` — use `unknown`, proper types, or type narrowing
+- Avoid unsafe type assertions (`as SomeType`) — prefer narrowing
+- Use `const` by default; `let` only when reassignment is required
+- Use modern ES2022+ syntax (`await`, `??`, `?.`, etc.)
+- Use `async`/`await` over raw Promises
+- Avoid unnecessary classes — prefer functions and composition unless a class provides a genuine benefit
+- Use explicit return types for all exported and public-facing functions
+
+## Userscript entry point pattern
+
+```typescript
+// src/main.ts
+import { loadConfig } from './config';
+import { SomeService } from './services/some-service';
+import { initFeature } from './features/my-feature';
+import { observeNavigation } from './dom/observer';
+
+async function main(): Promise<void> {
+  // 1. Initialize configuration
+  const config = loadConfig();
+
+  // 2. Initialize services
+  const service = new SomeService(config);
+
+  // 3. Initialize features
+  initFeature(service);
+
+  // 4. Register observers / listeners
+  observeNavigation(() => initFeature(service));
+
+  // 5. Start
+  await service.start();
+}
+
+main();
+```
+
+## DOM and observers
+
+- Use `MutationObserver`, events, and appropriate DOM APIs — do not poll with `setInterval` when a reactive mechanism exists
+- Place MutationObserver setup in `dom/observer.ts` or a dedicated module
+- Handle SPA navigation when the target website dynamically replaces content
+- Properly type all DOM queries with generics: `querySelector<HTMLInputElement>('input')`
+
+## Build system
+
+- Use Vite as the build tool
+- TypeScript source must be bundled into a single userscript file
+- The generated output must include the userscript metadata header (`@name`, `@match`, `@grant`, etc.)
+- Source files must remain readable and individually maintainable — do not write logic directly in `vite.config.ts`
+- Use minimum required `@grant` permissions
+
+## Naming
+
+- Project directory: `scripts/<script-name>/` (use the actual script name, e.g. `chaturbate-recurbate`)
+- Entry point: `src/main.ts`
+- Generated artifact: named after the script (e.g. `chaturbate-recurbate.user.js`)
+- Never use generic names: `script.user.js`, `userscript.ts`, `index.ts`
+
+## Documentation
+
+Every script project must have its own `README.md` covering:
+
+- What the script does
+- Features
+- Requirements
+- Installation
+- Usage
+- Configuration (with defaults)
+- Permissions
+- Development setup and build instructions
+- Changelog when applicable
+
+## Creating a new userscript
+
+1. Understand the target website and required behavior
+2. Determine architecture based on complexity (don't over-engineer)
+3. Create `scripts/<name>/`
+4. Add `package.json`, `tsconfig.json`, `vite.config.ts`
+5. Create `src/main.ts`
+6. Extract functionality into focused modules as complexity warrants
+7. Add userscript metadata header
+8. Write `README.md`
+9. Build and verify output (`npm run build`)
+10. Check for TypeScript errors (`tsc --noEmit`)
+11. Verify the final userscript works as expected
+
+## Modifying an existing userscript
+
+- Inspect the existing architecture before making changes
+- Preserve working behavior unless explicitly asked to change it
+- Refactor incrementally — do not rewrite working code unnecessarily
+- If an existing file is a monolithic blob, refactor into logical modules only when complexity justifies it
+- Keep public behavior unchanged unless the request explicitly requires a change
+
+## Code quality priorities
+
+1. Correctness
+2. Maintainability
+3. Type safety
+4. Performance
+5. Simplicity
+
+Do not optimize prematurely. Do not introduce a dependency unless there is a clear benefit. Do not create an abstraction used only once unless it meaningfully improves readability or separation of concerns. Generate complete, working implementations — not pseudo-code or stubs.
