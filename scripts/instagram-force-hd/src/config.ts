@@ -1,11 +1,13 @@
-export const config = {
-  /** Enable debug logging to the browser console. */
+export interface Config {
+  debug: boolean;
+  autoFullscreenOnOpen: boolean;
+  gestureMaxAgeMs: number;
+  readonly logPrefix: string;
+}
+
+export const config: Config = {
   debug: false,
-  /** Auto-enter fullscreen when a video starts playing after a user gesture. */
   autoFullscreenOnOpen: true,
-  /** Maximum age (ms) of a user gesture that qualifies for auto-fullscreen. */
   gestureMaxAgeMs: 2500,
   logPrefix: '[IG Force HD]',
-} as const;
-
-export type Config = typeof config;
+};

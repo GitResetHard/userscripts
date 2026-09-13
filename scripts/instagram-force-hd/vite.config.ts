@@ -13,7 +13,7 @@ export default defineConfig({
         author: 'local',
         match: ['https://www.instagram.com/*', 'https://instagram.com/*'],
         'run-at': 'document-start',
-        grant: 'none',
+        grant: ['GM_getValue', 'GM_setValue', 'GM_registerMenuCommand'],
       },
       build: {
         fileName: 'instagram-force-hd.js',

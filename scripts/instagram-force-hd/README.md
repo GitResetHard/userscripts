@@ -38,17 +38,24 @@ Browse Instagram normally. HD quality is applied automatically on every page loa
 
 ## Configuration
 
-Edit `src/config.ts` before building:
+Edit `src/config.ts` before building to change code-level defaults:
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `debug` | `false` | Print debug messages to the browser console |
-| `autoFullscreenOnOpen` | `true` | Auto-enter fullscreen when a video starts after a gesture |
 | `gestureMaxAgeMs` | `2500` | Maximum gesture age (ms) that qualifies for auto-fullscreen |
+
+### Runtime settings
+
+`autoFullscreenOnOpen` can be toggled without rebuilding. Open the ScriptCat / Tampermonkey menu on any Instagram page:
+
+> **Auto-fullscreen on open: ON — click to toggle**
+
+Clicking it saves the preference and reloads the page. The setting persists across sessions.
 
 ## Permissions
 
-`@grant none` — no special browser or userscript permissions required.
+`GM_getValue`, `GM_setValue`, `GM_registerMenuCommand` — used for persistent user settings and the toggle menu command.
 
 ## Architecture
 

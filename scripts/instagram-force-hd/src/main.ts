@@ -1,4 +1,5 @@
 import { config } from './config';
+import { initSettings, registerMenuCommands } from './settings';
 import { spoofNetworkHints } from './network/connection';
 import { hookFetch } from './network/fetch-hook';
 import { hookXHR } from './network/xhr-hook';
@@ -6,16 +7,15 @@ import { bindGestureTracking } from './fullscreen/gestures';
 import { bindFullscreenChangeListener } from './fullscreen/index';
 import { observeDom } from './dom/observer';
 
-// Network hooks run immediately at document-start before any Instagram code loads.
+// Settings must be loaded before anything reads from config.
+initSettings();
+
 spoofNetworkHints();
 hookFetch();
 hookXHR();
-
-// Input handling and fullscreen state wiring.
 bindGestureTracking();
 bindFullscreenChangeListener();
-
-// DOM observation for media upgrading and fullscreen button injection.
 observeDom();
+registerMenuCommands();
 
 console.info(`${config.logPrefix} active (HD + fullscreen)`);
