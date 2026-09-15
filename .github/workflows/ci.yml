@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']          # tags are handled by release.yml
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'Script name to check (e.g. instagram-force-hd). Leave empty to check all changed scripts, or "all" to force-check every script.'
+        required: false
+        default: ''
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Detect which scripts need checking ─────────────────────────────────────
+  detect:
+    name: Detect changed scripts
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      empty: ${{ steps.set.outputs.empty }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history needed for accurate diffs
+
+      - name: Resolve changed scripts
+        id: set
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ALL_SCRIPTS=$(ls scripts/ | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          # ── Manual trigger ────────────────────────────────────────────
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            INPUT="${{ inputs.script }}"
+            if [[ "$INPUT" == "all" || -z "$INPUT" ]]; then
+              MATRIX="$ALL_SCRIPTS"
+            else
+              MATRIX="[\"$INPUT\"]"
+            fi
+            echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+            echo "empty=false"    >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ── Determine comparison base ─────────────────────────────────
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="origin/${{ github.base_ref }}"
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            DIFF=$(git diff --name-only "$BASE"...HEAD)
+          else
+            # push — compare against previous commit; handle first push edge case
+            if git rev-parse HEAD~1 &>/dev/null; then
+              DIFF=$(git diff --name-only HEAD~1 HEAD)
+            else
+              DIFF=$(git diff --name-only 4b825dc642cb6eb9a060e54bf8d69288fbee4904 HEAD)
+            fi
+          fi
+
+          # ── If workflow files changed, rebuild everything ──────────────
+          if echo "$DIFF" | grep -q '\.github/workflows/'; then
+            echo "Workflow files changed — checking all scripts"
+            MATRIX="$ALL_SCRIPTS"
+            echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+            echo "empty=false"    >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # ── Extract changed script directories ────────────────────────
+          CHANGED=$(echo "$DIFF" \
+            | grep '^scripts/' \
+            | cut -d'/' -f2 \
+            | sort -u \
+            | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "matrix=$CHANGED" >> "$GITHUB_OUTPUT"
+
+          if [[ "$CHANGED" == "[]" || -z "$CHANGED" ]]; then
+            echo "empty=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Per-script checks ───────────────────────────────────────────────────────
+  check:
+    name: '${{ matrix.script }}'
+    needs: detect
+    if: needs.detect.outputs.empty == 'false'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        script: ${{ fromJson(needs.detect.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: scripts/${{ matrix.script }}/package-lock.json
+
+      - name: Install
+        working-directory: scripts/${{ matrix.script }}
+        run: npm ci
+
+      - name: Type check
+        working-directory: scripts/${{ matrix.script }}
+        run: npm run typecheck
+
+      - name: Format check
+        working-directory: scripts/${{ matrix.script }}
+        run: npm run format:check
+
+      - name: Build
+        working-directory: scripts/${{ matrix.script }}
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.script }}
+          path: scripts/${{ matrix.script }}/dist/*.js
+          retention-days: 30
+          if-no-files-found: error
+
+  # ── Summary gate ────────────────────────────────────────────────────────────
+  # A single job that branch-protection rules can require, regardless of how
+  # many (or how few) matrix entries ran.
+  ci-ok:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [detect, check]
+    if: always()
+    steps:
+      - name: All checks passed
+        run: |
+          if [[ "${{ needs.check.result }}" == "failure" ]]; then
+            echo "One or more script checks failed."
+            exit 1
+          fi
+          echo "CI passed (or no scripts needed checking)."
