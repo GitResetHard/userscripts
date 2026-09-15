@@ -13,6 +13,11 @@ export default defineConfig({
           'CDN link injector, album stats, hover quick-preview, and already-seen deduplication for balbums.st and bunkr.cr',
         author: 'local',
         match: ['https://balbums.st/*', 'https://bunkr.cr/*'],
+        updateURL:
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/bunkr-suite.js',
+        downloadURL:
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/bunkr-suite.js',
+        supportURL: 'https://github.com/GitResetHard/userscripts/issues',
         'run-at': 'document-idle',
         grant: [
           'GM_getValue',

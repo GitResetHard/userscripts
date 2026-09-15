@@ -1,0 +1,177 @@
+name: Release
+
+# Triggered by tags of the form:  {script-name}@v{semver}
+# Examples:
+#   instagram-force-hd@v1.3.0
+#   bunkr-suite@v2.0.1
+#   reddit-cleaner@v1.0.0
+#
+# How to release:
+#   git tag instagram-force-hd@v1.3.0
+#   git push origin instagram-force-hd@v1.3.0
+
+on:
+  push:
+    tags:
+      - '*@v[0-9]*'
+
+permissions:
+  contents: write   # create releases + push to dist branch
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # full history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Parse tag ──────────────────────────────────────────────────────────
+      - name: Parse tag
+        id: tag
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"                 # e.g. instagram-force-hd@v1.3.0
+          SCRIPT="${TAG%@*}"                        # instagram-force-hd
+          VERSION="${TAG#*@v}"                      # 1.3.0
+
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "script=$SCRIPT"   >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Validate the script directory exists
+          if [[ ! -d "scripts/$SCRIPT" ]]; then
+            echo "::error::Directory scripts/$SCRIPT not found for tag $TAG"
+            exit 1
+          fi
+
+      # ── Build ──────────────────────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: scripts/${{ steps.tag.outputs.script }}/package-lock.json
+
+      - name: Install
+        working-directory: scripts/${{ steps.tag.outputs.script }}
+        run: npm ci
+
+      - name: Type check
+        working-directory: scripts/${{ steps.tag.outputs.script }}
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: scripts/${{ steps.tag.outputs.script }}
+        run: npm run build
+
+      - name: Locate artifact
+        id: artifact
+        shell: bash
+        run: |
+          SCRIPT="${{ steps.tag.outputs.script }}"
+          echo "path=scripts/$SCRIPT/dist/$SCRIPT.js" >> "$GITHUB_OUTPUT"
+          echo "filename=$SCRIPT.js"                  >> "$GITHUB_OUTPUT"
+
+      # ── Generate changelog ─────────────────────────────────────────────────
+      - name: Generate changelog
+        id: changelog
+        shell: bash
+        run: |
+          SCRIPT="${{ steps.tag.outputs.script }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          # Find the previous tag for this script (if any)
+          PREV=$(git tag -l "${SCRIPT}@v*" \
+            | grep -v "^${TAG}$" \
+            | sort -V \
+            | tail -1)
+
+          if [[ -n "$PREV" ]]; then
+            RANGE="${PREV}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          # Commits that touched this script's directory
+          COMMITS=$(git log "$RANGE" \
+            --oneline \
+            --no-merges \
+            -- "scripts/$SCRIPT/" \
+            | head -30 \
+            | sed 's/^/- /')
+
+          if [[ -z "$COMMITS" ]]; then
+            COMMITS="- No commit messages to display (tag may point to a merge commit)"
+          fi
+
+          {
+            echo "## What's changed"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "## Install / Update"
+            echo ""
+            echo "**Automatic update:** If you installed via the \`@updateURL\` link, your"
+            echo "userscript manager will prompt you to update automatically."
+            echo ""
+            echo "**Manual install:** Download \`$SCRIPT.js\` from the assets below and"
+            echo "open it — ScriptCat / Tampermonkey will prompt to install."
+            echo ""
+            echo "**Direct update URL (always latest)**"
+            echo "\`\`\`"
+            echo "https://raw.githubusercontent.com/${{ github.repository }}/dist/$SCRIPT.js"
+            echo "\`\`\`"
+          } > /tmp/release-notes.md
+
+          echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
+
+      # ── Update dist branch ─────────────────────────────────────────────────
+      # The dist branch holds one .js per script at a stable URL so that
+      # @updateURL / @downloadURL in the userscript header always serves the
+      # latest released version.
+      - name: Push to dist branch
+        shell: bash
+        run: |
+          SCRIPT="${{ steps.tag.outputs.script }}"
+          ARTIFACT="${{ steps.artifact.outputs.path }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin dist --depth=1 2>/dev/null || true
+
+          if git show-ref --verify --quiet refs/remotes/origin/dist; then
+            git worktree add /tmp/dist-branch origin/dist
+          else
+            git worktree add --orphan -b dist /tmp/dist-branch
+          fi
+
+          cp "$ARTIFACT" "/tmp/dist-branch/$SCRIPT.js"
+
+          cd /tmp/dist-branch
+          git add "$SCRIPT.js"
+
+          if git diff --cached --quiet; then
+            echo "No changes to dist branch for $SCRIPT — skipping commit"
+          else
+            git commit -m "release: $SCRIPT v$VERSION"
+            git push origin dist
+          fi
+
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove /tmp/dist-branch --force
+
+      # ── Create GitHub Release ──────────────────────────────────────────────
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "${{ steps.tag.outputs.script }} v${{ steps.tag.outputs.version }}" \
+            --notes-file "${{ steps.changelog.outputs.notes_file }}" \
+            "${{ steps.artifact.outputs.path }}#${{ steps.artifact.outputs.filename }}"
