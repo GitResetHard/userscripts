@@ -13,9 +13,9 @@ export default defineConfig({
         author: 'local',
         match: ['https://www.instagram.com/*', 'https://instagram.com/*'],
         updateURL:
-          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/instagram-force-hd.user.js',
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/instagram-force-hd.js',
         downloadURL:
-          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/instagram-force-hd.user.js',
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/instagram-force-hd.js',
         supportURL: 'https://github.com/GitResetHard/userscripts/issues',
         'run-at': 'document-start',
         grant: ['GM_getValue', 'GM_setValue', 'GM_registerMenuCommand'],

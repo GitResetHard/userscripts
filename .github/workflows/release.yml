@@ -67,19 +67,14 @@ jobs:
         working-directory: scripts/${{ steps.tag.outputs.script }}
         run: npm run build
 
-      # ── Rename .js → .user.js ─────────────────────────────────────────────
-      # Browsers and userscript managers detect the .user.js extension and
-      # offer to install the script automatically when it's opened or downloaded.
-      - name: Prepare artifact
+      - name: Locate artifact
         id: artifact
         shell: bash
         run: |
           SCRIPT="${{ steps.tag.outputs.script }}"
-          SRC="scripts/$SCRIPT/dist/$SCRIPT.js"
-          DEST="scripts/$SCRIPT/dist/$SCRIPT.user.js"
-          cp "$SRC" "$DEST"
-          echo "path=$DEST"       >> "$GITHUB_OUTPUT"
-          echo "filename=$SCRIPT.user.js" >> "$GITHUB_OUTPUT"
+          PATH_JS="scripts/$SCRIPT/dist/$SCRIPT.js"
+          echo "path=$PATH_JS"        >> "$GITHUB_OUTPUT"
+          echo "filename=$SCRIPT.js"  >> "$GITHUB_OUTPUT"
 
       # ── Generate changelog ─────────────────────────────────────────────────
       - name: Generate changelog
@@ -97,10 +92,8 @@ jobs:
 
           if [[ -n "$PREV" ]]; then
             RANGE="${PREV}..HEAD"
-            INTRO="Changes since \`$PREV\`"
           else
             RANGE="HEAD"
-            INTRO="Initial release"
           fi
 
           # Commits that touched this script's directory
@@ -128,19 +121,19 @@ jobs:
             echo "userscript manager will prompt you to update automatically."
             echo ""
             echo "**Option B — manual install**"
-            echo "1. Download \`$SCRIPT.user.js\` from the assets below."
+            echo "1. Download \`$SCRIPT.js\` from the assets below."
             echo "2. Open it — your userscript manager (ScriptCat / Tampermonkey) will prompt to install."
             echo ""
             echo "**Direct update URL (always latest)**"
             echo "\`\`\`"
-            echo "https://raw.githubusercontent.com/${{ github.repository }}/dist/$SCRIPT.user.js"
+            echo "https://raw.githubusercontent.com/${{ github.repository }}/dist/$SCRIPT.js"
             echo "\`\`\`"
           } > /tmp/release-notes.md
 
           echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
 
       # ── Update dist branch ─────────────────────────────────────────────────
-      # The dist branch holds one .user.js per script at a stable URL so that
+      # The dist branch holds one .js per script at a stable URL so that
       # @updateURL / @downloadURL in the userscript header always serves the
       # latest released version.
       - name: Push to dist branch
@@ -164,10 +157,10 @@ jobs:
             git worktree add --orphan -b dist /tmp/dist-branch
           fi
 
-          cp "$ARTIFACT" "/tmp/dist-branch/$SCRIPT.user.js"
+          cp "$ARTIFACT" "/tmp/dist-branch/$SCRIPT.js"
 
           cd /tmp/dist-branch
-          git add "$SCRIPT.user.js"
+          git add "$SCRIPT.js"
 
           if git diff --cached --quiet; then
             echo "No changes to dist branch for $SCRIPT — skipping commit"

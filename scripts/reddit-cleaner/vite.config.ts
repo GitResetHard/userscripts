@@ -14,9 +14,9 @@ export default defineConfig({
         author: 'local',
         match: ['https://www.reddit.com/*', 'https://old.reddit.com/*'],
         updateURL:
-          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/reddit-cleaner.user.js',
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/reddit-cleaner.js',
         downloadURL:
-          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/reddit-cleaner.user.js',
+          'https://raw.githubusercontent.com/GitResetHard/userscripts/dist/reddit-cleaner.js',
         supportURL: 'https://github.com/GitResetHard/userscripts/issues',
         'run-at': 'document-idle',
         grant: ['GM_getValue', 'GM_setValue', 'GM_registerMenuCommand'],
