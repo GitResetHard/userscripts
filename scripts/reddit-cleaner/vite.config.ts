@@ -11,7 +11,7 @@ export default defineConfig({
         version: "1.0.0",
         description:
           "Manage your Reddit subscriptions and upvoted posts — bulk unsubscribe and un-upvote with filtering, sorting, and batch selection.",
-        author: "local",
+        author: "GitResetHard",
         match: ["https://www.reddit.com/*", "https://old.reddit.com/*"],
         updateURL:
           "https://raw.githubusercontent.com/GitResetHard/userscripts/dist/reddit-cleaner.js",

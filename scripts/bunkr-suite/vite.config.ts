@@ -11,7 +11,7 @@ export default defineConfig({
         version: "1.0.0",
         description:
           "CDN link injector, album stats, hover quick-preview, and already-seen deduplication for balbums.st and bunkr.cr",
-        author: "local",
+        author: "GitResetHard",
         match: ["https://balbums.st/*", "https://bunkr.cr/*"],
         updateURL:
           "https://raw.githubusercontent.com/GitResetHard/userscripts/dist/bunkr-suite.js",
