@@ -80,12 +80,15 @@ jobs:
         id: changelog
         shell: bash
         run: |
+          set -euo pipefail
+
           SCRIPT="${{ steps.tag.outputs.script }}"
           TAG="${{ steps.tag.outputs.tag }}"
 
-          # Find the previous tag for this script (if any)
+          # Find the previous tag for this script (if any). grep exits 1 when the
+          # current tag is the only one — must not fail the pipeline (pipefail).
           PREV=$(git tag -l "${SCRIPT}@v*" \
-            | grep -v "^${TAG}$" \
+            | { grep -v "^${TAG}$" || true; } \
             | sort -V \
             | tail -1)
 
@@ -95,13 +98,13 @@ jobs:
             RANGE="HEAD"
           fi
 
-          # Commits that touched this script's directory
+          # Commits that touched this script's directory (-n avoids SIGPIPE from head)
           COMMITS=$(git log "$RANGE" \
             --oneline \
             --no-merges \
+            -n 30 \
             -- "scripts/$SCRIPT/" \
-            | head -30 \
-            | sed 's/^/- /')
+            | sed 's/^/- /' || true)
 
           if [[ -z "$COMMITS" ]]; then
             COMMITS="- No commit messages to display (tag may point to a merge commit)"
