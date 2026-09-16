@@ -18,6 +18,13 @@ on:
 permissions:
   contents: write   # create releases + push to dist branch
 
+# Pushing several tags at once starts one workflow per tag. They must not
+# create/push the shared `dist` branch in parallel (instagram wins; others
+# hit "reference already exists" and never reach gh release create).
+concurrency:
+  group: release-dist-branch
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Release ${{ github.ref_name }}
@@ -131,6 +138,26 @@ jobs:
 
           echo "notes_file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
 
+      # ── Create GitHub Release ──────────────────────────────────────────────
+      # Before dist push so a dist race/failure still leaves a release artifact.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading asset"
+            gh release upload "$TAG" \
+              "${{ steps.artifact.outputs.path }}#${{ steps.artifact.outputs.filename }}" \
+              --clobber
+          else
+            gh release create "$TAG" \
+              --title "${{ steps.tag.outputs.script }} v${{ steps.tag.outputs.version }}" \
+              --notes-file "${{ steps.changelog.outputs.notes_file }}" \
+              "${{ steps.artifact.outputs.path }}#${{ steps.artifact.outputs.filename }}"
+          fi
+
       # ── Update dist branch ─────────────────────────────────────────────────
       # The dist branch holds one .js per script at a stable URL so that
       # @updateURL / @downloadURL in the userscript header always serves the
@@ -138,43 +165,62 @@ jobs:
       - name: Push to dist branch
         shell: bash
         run: |
+          set -euo pipefail
+
           SCRIPT="${{ steps.tag.outputs.script }}"
           ARTIFACT="${{ steps.artifact.outputs.path }}"
           VERSION="${{ steps.tag.outputs.version }}"
+          WORKTREE="/tmp/dist-branch"
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git fetch origin dist --depth=1 2>/dev/null || true
-
-          if git show-ref --verify --quiet refs/remotes/origin/dist; then
-            git worktree add /tmp/dist-branch origin/dist
-          else
-            git worktree add --orphan -b dist /tmp/dist-branch
+          rm -rf "$WORKTREE"
+          if git worktree list | grep -q "$WORKTREE"; then
+            git worktree remove "$WORKTREE" --force
           fi
 
-          cp "$ARTIFACT" "/tmp/dist-branch/$SCRIPT.js"
+          dist_exists() {
+            git ls-remote --exit-code --heads origin dist >/dev/null 2>&1
+          }
 
-          cd /tmp/dist-branch
-          git add "$SCRIPT.js"
+          checkout_dist() {
+            rm -rf "$WORKTREE"
+            if dist_exists; then
+              git fetch origin dist --depth=1
+              git worktree add "$WORKTREE" origin/dist
+            else
+              git worktree add --orphan -B dist "$WORKTREE"
+            fi
+          }
 
-          if git diff --cached --quiet; then
-            echo "No changes to dist branch for $SCRIPT — skipping commit"
-          else
+          push_dist() {
+            cd "$WORKTREE"
+            git add "$SCRIPT.js"
+            if git diff --cached --quiet; then
+              echo "No changes to dist branch for $SCRIPT — skipping commit"
+              return 0
+            fi
             git commit -m "release: $SCRIPT v$VERSION"
             git push origin dist
-          fi
+          }
+
+          pushed=false
+          for attempt in 1 2 3 4 5; do
+            checkout_dist
+            cp "$ARTIFACT" "$WORKTREE/$SCRIPT.js"
+            if push_dist; then
+              pushed=true
+              break
+            fi
+            echo "dist push failed (attempt $attempt) — retrying after fetch"
+            sleep 2
+          done
 
           cd "$GITHUB_WORKSPACE"
-          git worktree remove /tmp/dist-branch --force
+          git worktree remove "$WORKTREE" --force
 
-      # ── Create GitHub Release ──────────────────────────────────────────────
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          gh release create "${{ steps.tag.outputs.tag }}" \
-            --title "${{ steps.tag.outputs.script }} v${{ steps.tag.outputs.version }}" \
-            --notes-file "${{ steps.changelog.outputs.notes_file }}" \
-            "${{ steps.artifact.outputs.path }}#${{ steps.artifact.outputs.filename }}"
+          if [[ "$pushed" != true ]]; then
+            echo "::error::Failed to push $SCRIPT.js to dist branch after 5 attempts"
+            exit 1
+          fi
