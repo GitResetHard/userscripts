@@ -1,8 +1,8 @@
-import { config } from '../config';
+import { config } from "../config";
 
 export function getVisitedAlbums(): Set<string> {
   try {
-    const raw = GM_getValue<string>(config.alreadySeen.storageKey, '[]');
+    const raw = GM_getValue<string>(config.alreadySeen.storageKey, "[]");
     return new Set(JSON.parse(raw));
   } catch {
     return new Set();
@@ -19,5 +19,5 @@ export function addVisitedAlbum(albumId: string): void {
 }
 
 export function clearVisitedAlbums(): void {
-  GM_setValue(config.alreadySeen.storageKey, '[]');
+  GM_setValue(config.alreadySeen.storageKey, "[]");
 }

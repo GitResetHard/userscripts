@@ -1,6 +1,6 @@
 export const config = {
   debug: false,
-  logPrefix: '[BunkrSuite]',
+  logPrefix: "[BunkrSuite]",
 
   hoverPreview: {
     /** Milliseconds of hover dwell before fetching the album preview. */
@@ -10,9 +10,9 @@ export const config = {
   },
 
   alreadySeen: {
-    storageKey: 'bks_visited',
+    storageKey: "bks_visited",
     /** CSS opacity applied to seen album cards (0–1). */
-    dimOpacity: '0.42',
+    dimOpacity: "0.42",
     /** Cap on stored album IDs to prevent unbounded growth. */
     maxTracked: 10_000,
   },

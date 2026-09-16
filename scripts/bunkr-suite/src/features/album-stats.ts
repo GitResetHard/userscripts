@@ -14,11 +14,11 @@
  *  5. Re-counts automatically when infinite-scroll appends more items.
  */
 
-import { gmFetchJson } from '../services/cross-fetch';
-import { log, warn } from '../utils/log';
-import type { FileTypeSummary } from '../types';
+import { gmFetchJson } from "../services/cross-fetch";
+import { log, warn } from "../utils/log";
+import type { FileTypeSummary } from "../types";
 
-const PANEL_ID = 'bks-stats-panel';
+const PANEL_ID = "bks-stats-panel";
 
 const STYLES = `
 #${PANEL_ID} {
@@ -67,24 +67,26 @@ interface AlbumApiData {
 }
 
 function injectStyles(): void {
-  if (document.getElementById('bks-stats-styles')) return;
-  const s = document.createElement('style');
-  s.id = 'bks-stats-styles';
+  if (document.getElementById("bks-stats-styles")) return;
+  const s = document.createElement("style");
+  s.id = "bks-stats-styles";
   s.textContent = STYLES;
   document.head.appendChild(s);
 }
 
 function countFileTypes(): FileTypeSummary {
-  const items = document.querySelectorAll<Element>('.theItem, [class*="theItem"]');
+  const items = document.querySelectorAll<Element>(
+    '.theItem, [class*="theItem"]',
+  );
   let videos = 0;
   let images = 0;
 
   items.forEach((item) => {
-    const link = item.querySelector<HTMLAnchorElement>('a[href]');
-    const href = link?.getAttribute('href') ?? '';
+    const link = item.querySelector<HTMLAnchorElement>("a[href]");
+    const href = link?.getAttribute("href") ?? "";
     // Video file pages use /v/ prefix; image pages use /i/.
     // The item may also carry a video-icon badge we can check as a fallback.
-    const hasVideoPath = href.startsWith('/v/');
+    const hasVideoPath = href.startsWith("/v/");
     const hasVideoIcon = !!item.querySelector(
       '[class*="video"], [class*="play-circle"], svg[class*="play"]',
     );
@@ -99,49 +101,54 @@ function countFileTypes(): FileTypeSummary {
 }
 
 function makeStat(value: string, label: string): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'bks-stat-item';
-  const v = document.createElement('span');
-  v.className = 'bks-stat-val';
+  const el = document.createElement("div");
+  el.className = "bks-stat-item";
+  const v = document.createElement("span");
+  v.className = "bks-stat-val";
   v.textContent = value;
-  const l = document.createElement('span');
+  const l = document.createElement("span");
   l.textContent = label;
   el.append(v, l);
   return el;
 }
 
 function makeSep(): HTMLElement {
-  const el = document.createElement('div');
-  el.className = 'bks-stat-sep';
+  const el = document.createElement("div");
+  el.className = "bks-stat-sep";
   return el;
 }
 
-function buildPanel(summary: FileTypeSummary, apiData?: AlbumApiData): HTMLElement {
-  const panel = document.createElement('div');
+function buildPanel(
+  summary: FileTypeSummary,
+  apiData?: AlbumApiData,
+): HTMLElement {
+  const panel = document.createElement("div");
   panel.id = PANEL_ID;
 
   const parts: HTMLElement[] = [];
 
-  if (summary.videos > 0) parts.push(makeStat(String(summary.videos), 'videos'));
-  if (summary.images > 0) parts.push(makeStat(String(summary.images), 'images'));
+  if (summary.videos > 0)
+    parts.push(makeStat(String(summary.videos), "videos"));
+  if (summary.images > 0)
+    parts.push(makeStat(String(summary.images), "images"));
 
   if (summary.videos > 0 && summary.images > 0) {
     const ratio = ((summary.videos / summary.total) * 100).toFixed(0);
-    parts.push(makeStat(`${ratio}%`, 'video'));
+    parts.push(makeStat(`${ratio}%`, "video"));
   }
 
   if (apiData) {
     const views = apiData.views ?? apiData.totalViews;
-    if (typeof views === 'number' && views > 0) {
-      parts.push(makeStat(views.toLocaleString(), 'views'));
+    if (typeof views === "number" && views > 0) {
+      parts.push(makeStat(views.toLocaleString(), "views"));
     }
 
     const rawDate = apiData.createdAt ?? apiData.created_at;
-    if (typeof rawDate === 'string') {
+    if (typeof rawDate === "string") {
       try {
         const d = new Date(rawDate);
         if (!isNaN(d.getTime())) {
-          parts.push(makeStat(d.toLocaleDateString(), 'uploaded'));
+          parts.push(makeStat(d.toLocaleDateString(), "uploaded"));
         }
       } catch {
         // ignore malformed date
@@ -166,29 +173,32 @@ function injectPanel(summary: FileTypeSummary, apiData?: AlbumApiData): void {
   const panel = buildPanel(summary, apiData);
 
   // Insert after the first <h1> (album title) we find.
-  const heading = document.querySelector<HTMLElement>('h1');
+  const heading = document.querySelector<HTMLElement>("h1");
   if (heading?.parentElement) {
     heading.parentElement.insertBefore(panel, heading.nextSibling);
-    log('Stats panel injected:', summary, apiData ?? {});
+    log("Stats panel injected:", summary, apiData ?? {});
   }
 }
 
-async function fetchAlbumApiData(albumId: string): Promise<AlbumApiData | undefined> {
+async function fetchAlbumApiData(
+  albumId: string,
+): Promise<AlbumApiData | undefined> {
   try {
     const data = await gmFetchJson<AlbumApiData>(
       `https://s.bunkr.ru/api/albums/ats/${albumId}`,
     );
-    log('Album API data:', data);
+    log("Album API data:", data);
     return data;
   } catch (err) {
     // API is not always reachable — silently degrade.
-    warn('Album API unavailable:', err);
+    warn("Album API unavailable:", err);
     return undefined;
   }
 }
 
 function waitForItems(timeoutMs = 10_000): Promise<void> {
-  if (document.querySelector('.theItem, [class*="theItem"]')) return Promise.resolve();
+  if (document.querySelector('.theItem, [class*="theItem"]'))
+    return Promise.resolve();
 
   return new Promise((resolve) => {
     const obs = new MutationObserver(() => {
@@ -212,7 +222,10 @@ export async function initAlbumStats(): Promise<void> {
   if (!albumId) return;
 
   // Kick off API request in parallel with waiting for the grid to render.
-  const [, apiData] = await Promise.all([waitForItems(), fetchAlbumApiData(albumId)]);
+  const [, apiData] = await Promise.all([
+    waitForItems(),
+    fetchAlbumApiData(albumId),
+  ]);
 
   const summary = countFileTypes();
   injectPanel(summary, apiData);

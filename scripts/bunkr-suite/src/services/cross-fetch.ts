@@ -7,10 +7,10 @@
 export function gmFetch(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
-      method: 'GET',
+      method: "GET",
       url,
       timeout: 12_000,
-      headers: { Accept: 'text/html,application/json,*/*' },
+      headers: { Accept: "text/html,application/json,*/*" },
       onload(r) {
         if (r.status >= 400) {
           reject(new Error(`HTTP ${r.status}: ${url}`));

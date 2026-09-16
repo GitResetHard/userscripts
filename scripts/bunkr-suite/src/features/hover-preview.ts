@@ -9,15 +9,15 @@
  * Results are cached in-memory so repeated hovers on the same card are free.
  */
 
-import { gmFetch } from '../services/cross-fetch';
-import { observeAdded } from '../dom/observer';
-import { config } from '../config';
-import { log } from '../utils/log';
-import type { PreviewData } from '../types';
+import { gmFetch } from "../services/cross-fetch";
+import { observeAdded } from "../dom/observer";
+import { config } from "../config";
+import { log } from "../utils/log";
+import type { PreviewData } from "../types";
 
-type CacheEntry = PreviewData | 'error';
+type CacheEntry = PreviewData | "error";
 
-const POPOVER_ID = 'bks-preview-popover';
+const POPOVER_ID = "bks-preview-popover";
 const POPOVER_W = 316;
 
 const STYLES = `
@@ -81,9 +81,9 @@ let activePopover: HTMLElement | null = null;
 let hoverTimer: ReturnType<typeof setTimeout> | null = null;
 
 function injectStyles(): void {
-  if (document.getElementById('bks-pop-styles')) return;
-  const s = document.createElement('style');
-  s.id = 'bks-pop-styles';
+  if (document.getElementById("bks-pop-styles")) return;
+  const s = document.createElement("style");
+  s.id = "bks-pop-styles";
   s.textContent = STYLES;
   document.head.appendChild(s);
 }
@@ -106,64 +106,70 @@ function computePosition(anchor: Element): { top: number; left: number } {
   return { top, left };
 }
 
-function buildPopover(content: PreviewData | 'loading' | 'error', anchor: Element): HTMLElement {
-  const el = document.createElement('div');
+function buildPopover(
+  content: PreviewData | "loading" | "error",
+  anchor: Element,
+): HTMLElement {
+  const el = document.createElement("div");
   el.id = POPOVER_ID;
   const { top, left } = computePosition(anchor);
   el.style.top = `${top}px`;
   el.style.left = `${left}px`;
 
-  if (content === 'loading') {
-    const state = document.createElement('div');
-    state.className = 'bks-pop-state';
-    state.textContent = 'Loading preview…';
+  if (content === "loading") {
+    const state = document.createElement("div");
+    state.className = "bks-pop-state";
+    state.textContent = "Loading preview…";
     el.appendChild(state);
     return el;
   }
 
-  if (content === 'error') {
-    const state = document.createElement('div');
-    state.className = 'bks-pop-state error';
-    state.textContent = 'Preview unavailable';
+  if (content === "error") {
+    const state = document.createElement("div");
+    state.className = "bks-pop-state error";
+    state.textContent = "Preview unavailable";
     el.appendChild(state);
     return el;
   }
 
   if (content.title) {
-    const title = document.createElement('div');
-    title.className = 'bks-pop-title';
+    const title = document.createElement("div");
+    title.className = "bks-pop-title";
     title.textContent = content.title;
     el.appendChild(title);
   }
 
   if (content.thumbnails.length > 0) {
-    const grid = document.createElement('div');
-    grid.className = 'bks-pop-grid';
+    const grid = document.createElement("div");
+    grid.className = "bks-pop-grid";
     content.thumbnails.forEach((src) => {
-      const img = document.createElement('img');
-      img.className = 'bks-pop-thumb';
+      const img = document.createElement("img");
+      img.className = "bks-pop-thumb";
       img.src = src;
-      img.loading = 'lazy';
-      img.decoding = 'async';
+      img.loading = "lazy";
+      img.decoding = "async";
       grid.appendChild(img);
     });
     el.appendChild(grid);
   } else {
-    const state = document.createElement('div');
-    state.className = 'bks-pop-state';
-    state.textContent = 'No thumbnails found';
+    const state = document.createElement("div");
+    state.className = "bks-pop-state";
+    state.textContent = "No thumbnails found";
     el.appendChild(state);
   }
 
-  const meta = document.createElement('div');
-  meta.className = 'bks-pop-meta';
-  meta.textContent = content.fileCount > 0 ? `${content.fileCount} files` : '';
+  const meta = document.createElement("div");
+  meta.className = "bks-pop-meta";
+  meta.textContent = content.fileCount > 0 ? `${content.fileCount} files` : "";
   el.appendChild(meta);
 
   return el;
 }
 
-function showPopover(content: PreviewData | 'loading' | 'error', anchor: Element): void {
+function showPopover(
+  content: PreviewData | "loading" | "error",
+  anchor: Element,
+): void {
   removePopover();
   activePopover = buildPopover(content, anchor);
   document.body.appendChild(activePopover);
@@ -175,26 +181,28 @@ function removePopover(): void {
 }
 
 function parseAlbumPage(html: string, albumId: string): PreviewData {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const doc = new DOMParser().parseFromString(html, "text/html");
 
   // Thumbnails live inside .theItem elements on the bunkr.cr album page.
   // They are served from static.scdn.st under a /thumbs/ path.
-  const thumbs = Array.from(doc.querySelectorAll<HTMLImageElement>('img'))
+  const thumbs = Array.from(doc.querySelectorAll<HTMLImageElement>("img"))
     .map((img) => {
-      const src = img.getAttribute('src') ?? '';
+      const src = img.getAttribute("src") ?? "";
       // Convert relative src to absolute using the bunkr.cr origin.
-      if (src.startsWith('http')) return src;
-      if (src.startsWith('/')) return `https://bunkr.cr${src}`;
-      return '';
+      if (src.startsWith("http")) return src;
+      if (src.startsWith("/")) return `https://bunkr.cr${src}`;
+      return "";
     })
-    .filter((src) => src.includes('scdn.st') && src.includes('thumbs'))
+    .filter((src) => src.includes("scdn.st") && src.includes("thumbs"))
     .slice(0, config.hoverPreview.maxThumbnails);
 
-  const title = doc.querySelector('h1')?.textContent?.trim() ?? '';
+  const title = doc.querySelector("h1")?.textContent?.trim() ?? "";
   const countMatch = doc.body.textContent?.match(/(\d[\d,]*)\s+[Ff]iles?/);
-  const fileCount = countMatch?.[1] ? parseInt(countMatch[1].replace(/,/g, ''), 10) : 0;
+  const fileCount = countMatch?.[1]
+    ? parseInt(countMatch[1].replace(/,/g, ""), 10)
+    : 0;
 
-  log('Parsed preview for', albumId, '— thumbs:', thumbs.length);
+  log("Parsed preview for", albumId, "— thumbs:", thumbs.length);
   return { thumbnails: thumbs, title, fileCount };
 }
 
@@ -208,9 +216,9 @@ async function fetchPreview(albumId: string): Promise<CacheEntry> {
     previewCache.set(albumId, data);
     return data;
   } catch (err) {
-    log('Preview fetch failed for', albumId, err);
-    previewCache.set(albumId, 'error');
-    return 'error';
+    log("Preview fetch failed for", albumId, err);
+    previewCache.set(albumId, "error");
+    return "error";
   }
 }
 
@@ -225,7 +233,7 @@ async function onHover(card: HTMLAnchorElement): Promise<void> {
   }
 
   // Show loading state immediately, then replace once data arrives.
-  showPopover('loading', card);
+  showPopover("loading", card);
   const data = await fetchPreview(albumId);
   // Only update if the popover is still open (user hasn't moved away).
   if (activePopover) showPopover(data, card);
@@ -233,16 +241,16 @@ async function onHover(card: HTMLAnchorElement): Promise<void> {
 
 function attachHoverListeners(card: HTMLAnchorElement): void {
   if (card.dataset.bksHover) return;
-  card.dataset.bksHover = '1';
+  card.dataset.bksHover = "1";
 
-  card.addEventListener('mouseenter', () => {
+  card.addEventListener("mouseenter", () => {
     if (hoverTimer) clearTimeout(hoverTimer);
     hoverTimer = setTimeout(() => {
       void onHover(card);
     }, config.hoverPreview.delayMs);
   });
 
-  card.addEventListener('mouseleave', () => {
+  card.addEventListener("mouseleave", () => {
     if (hoverTimer) clearTimeout(hoverTimer);
     hoverTimer = null;
     removePopover();

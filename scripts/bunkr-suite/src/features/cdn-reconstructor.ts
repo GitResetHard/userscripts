@@ -16,10 +16,10 @@
  *     The panel is dismissible and auto-skips the VLC button on image pages.
  */
 
-import { log, warn } from '../utils/log';
-import type { CDNLink } from '../types';
+import { log, warn } from "../utils/log";
+import type { CDNLink } from "../types";
 
-const PANEL_ID = 'bks-cdn-panel';
+const PANEL_ID = "bks-cdn-panel";
 
 const STYLES = `
 #${PANEL_ID} {
@@ -81,9 +81,9 @@ const STYLES = `
 `;
 
 function injectStyles(): void {
-  if (document.getElementById('bks-cdn-styles')) return;
-  const s = document.createElement('style');
-  s.id = 'bks-cdn-styles';
+  if (document.getElementById("bks-cdn-styles")) return;
+  const s = document.createElement("style");
+  s.id = "bks-cdn-styles";
   s.textContent = STYLES;
   document.head.appendChild(s);
 }
@@ -91,9 +91,9 @@ function injectStyles(): void {
 function extractFilename(url: string): string {
   try {
     const pathname = new URL(url).pathname;
-    return pathname.split('/').filter(Boolean).pop() ?? 'file';
+    return pathname.split("/").filter(Boolean).pop() ?? "file";
   } catch {
-    return 'file';
+    return "file";
   }
 }
 
@@ -102,10 +102,10 @@ function extractFilename(url: string): string {
  * Signed CDN URLs include `ex=` and `token=` query params.
  */
 function isCDNUrl(url: string): boolean {
-  if (!url.startsWith('http')) return false;
+  if (!url.startsWith("http")) return false;
   try {
     const u = new URL(url);
-    return !u.hostname.includes('bunkr.cr');
+    return !u.hostname.includes("bunkr.cr");
   } catch {
     return false;
   }
@@ -114,52 +114,52 @@ function isCDNUrl(url: string): boolean {
 function showPanel(link: CDNLink): void {
   if (document.getElementById(PANEL_ID)) return;
 
-  const panel = document.createElement('div');
+  const panel = document.createElement("div");
   panel.id = PANEL_ID;
 
-  const label = document.createElement('div');
-  label.className = 'bks-cdn-label';
-  label.textContent = 'Direct CDN Link';
+  const label = document.createElement("div");
+  label.className = "bks-cdn-label";
+  label.textContent = "Direct CDN Link";
 
-  const name = document.createElement('div');
-  name.className = 'bks-cdn-name';
+  const name = document.createElement("div");
+  name.className = "bks-cdn-name";
   name.textContent = link.filename;
   name.title = link.url;
 
-  const btns = document.createElement('div');
-  btns.className = 'bks-cdn-btns';
+  const btns = document.createElement("div");
+  btns.className = "bks-cdn-btns";
 
-  function makeBtn(text: string, extra = ''): HTMLButtonElement {
-    const b = document.createElement('button');
+  function makeBtn(text: string, extra = ""): HTMLButtonElement {
+    const b = document.createElement("button");
     b.className = `bks-cdn-btn ${extra}`.trim();
     b.textContent = text;
     return b;
   }
 
-  const copyBtn = makeBtn('Copy URL');
-  copyBtn.addEventListener('click', () => {
+  const copyBtn = makeBtn("Copy URL");
+  copyBtn.addEventListener("click", () => {
     GM_setClipboard(link.url);
-    copyBtn.textContent = 'Copied ✓';
+    copyBtn.textContent = "Copied ✓";
     setTimeout(() => {
-      copyBtn.textContent = 'Copy URL';
+      copyBtn.textContent = "Copy URL";
     }, 2000);
   });
 
-  const newTabBtn = makeBtn('New Tab');
-  newTabBtn.addEventListener('click', () => {
-    window.open(link.url, '_blank');
+  const newTabBtn = makeBtn("New Tab");
+  newTabBtn.addEventListener("click", () => {
+    window.open(link.url, "_blank");
   });
 
-  const closeBtn = makeBtn('✕', 'bks-cdn-btn-close');
-  closeBtn.title = 'Dismiss';
-  closeBtn.addEventListener('click', () => panel.remove());
+  const closeBtn = makeBtn("✕", "bks-cdn-btn-close");
+  closeBtn.title = "Dismiss";
+  closeBtn.addEventListener("click", () => panel.remove());
 
   btns.append(copyBtn, newTabBtn);
 
   if (link.isVideo) {
-    const vlcBtn = makeBtn('Open VLC');
-    vlcBtn.title = 'Requires VLC registered as a vlc:// protocol handler';
-    vlcBtn.addEventListener('click', () => {
+    const vlcBtn = makeBtn("Open VLC");
+    vlcBtn.title = "Requires VLC registered as a vlc:// protocol handler";
+    vlcBtn.addEventListener("click", () => {
       window.location.href = `vlc://${link.url}`;
     });
     btns.appendChild(vlcBtn);
@@ -168,30 +168,44 @@ function showPanel(link: CDNLink): void {
   btns.appendChild(closeBtn);
   panel.append(label, name, btns);
   document.body.appendChild(panel);
-  log('CDN panel injected for:', link.filename);
+  log("CDN panel injected for:", link.filename);
 }
 
 function tryFind(): boolean {
-  const isVideo = window.location.pathname.startsWith('/v/');
+  const isVideo = window.location.pathname.startsWith("/v/");
 
   // 1. Download anchor (most reliable — the page puts the CDN URL here).
-  const dlAnchor = document.querySelector<HTMLAnchorElement>('a[download][href]');
+  const dlAnchor =
+    document.querySelector<HTMLAnchorElement>("a[download][href]");
   if (dlAnchor?.href && isCDNUrl(dlAnchor.href)) {
-    showPanel({ url: dlAnchor.href, filename: extractFilename(dlAnchor.href), isVideo });
+    showPanel({
+      url: dlAnchor.href,
+      filename: extractFilename(dlAnchor.href),
+      isVideo,
+    });
     return true;
   }
 
   if (isVideo) {
     // 2. <video src="...">
-    const video = document.querySelector<HTMLVideoElement>('video[src]');
+    const video = document.querySelector<HTMLVideoElement>("video[src]");
     if (video?.src && isCDNUrl(video.src)) {
-      showPanel({ url: video.src, filename: extractFilename(video.src), isVideo: true });
+      showPanel({
+        url: video.src,
+        filename: extractFilename(video.src),
+        isVideo: true,
+      });
       return true;
     }
     // 3. <source src="..."> inside <video>
-    const source = document.querySelector<HTMLSourceElement>('video source[src]');
+    const source =
+      document.querySelector<HTMLSourceElement>("video source[src]");
     if (source?.src && isCDNUrl(source.src)) {
-      showPanel({ url: source.src, filename: extractFilename(source.src), isVideo: true });
+      showPanel({
+        url: source.src,
+        filename: extractFilename(source.src),
+        isVideo: true,
+      });
       return true;
     }
   } else {
@@ -201,7 +215,11 @@ function tryFind(): boolean {
       'img[src*="ex="][src*="token="], .image-container img[src], main img[src]',
     );
     if (img?.src && isCDNUrl(img.src)) {
-      showPanel({ url: img.src, filename: extractFilename(img.src), isVideo: false });
+      showPanel({
+        url: img.src,
+        filename: extractFilename(img.src),
+        isVideo: false,
+      });
       return true;
     }
   }
@@ -224,14 +242,14 @@ export function initCDNReconstructor(): void {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['src', 'href'],
+    attributeFilter: ["src", "href"],
   });
 
   const TIMEOUT_MS = 20_000;
   setTimeout(() => {
     obs.disconnect();
     if (!document.getElementById(PANEL_ID)) {
-      warn('CDN URL not detected within', TIMEOUT_MS, 'ms — panel not shown');
+      warn("CDN URL not detected within", TIMEOUT_MS, "ms — panel not shown");
     }
   }, TIMEOUT_MS);
 }
